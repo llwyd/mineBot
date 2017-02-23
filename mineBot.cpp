@@ -67,7 +67,7 @@ BOOL captureFrame(Mat &f,HWND mineHandle,int height, int width){
 }
 
 
-BOOL countSquares(Mat &f,Mat &t, Mat &r, int &count){
+BOOL countSquares(Mat &f,Mat &t, Mat &r, int &count,vector<Point> &squares){
 	//Frame,Template,Result,Number of squares
 	Mat greysrc = f.clone();
 	Mat greyTemp = t.clone();
@@ -83,25 +83,35 @@ BOOL countSquares(Mat &f,Mat &t, Mat &r, int &count){
 	Point maxLoc;
 	Point matchLoc;
 	Point prevMatchLoc;
-
-	for (int i = 0, j = 0; i < 82; i++){
+	squares.clear();
+	
+	int dup = 0; //count duplicates
+	for (int i = 0, j = 0; i < 81; i++){
 		//minesweeper has gradient so only detects two of the squares.
 		minMaxLoc(r, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 		//if (maxVal > 0.87){
-		if ((maxVal > 0.940)){
-			//cout << "[" << j++ << "]=" << maxVal << "(" << maxLoc.x << "," << maxLoc.y << ")\n";
+		if ((maxVal > 0.920)){
 			matchLoc = maxLoc;
-			//if ((abs(matchLoc.y - prevMatchLoc.y) > 1)){
-				cout << abs(matchLoc.y - prevMatchLoc.y) << ",";
-				count = j++;
-				prevMatchLoc = matchLoc;
-				rectangle(r, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 0), CV_FILLED, 8, 0);
-				rectangle(f, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 255), 1, 8, 0);
+			for (int k = 0; k < squares.size(); k++){
+				if (((abs(matchLoc.y - squares[k].y) <= 1) && (abs(matchLoc.x - squares[k].x) <= 1))){
+					//cout << "!";
+					dup++;
+				}
+			}
+				cout << "Duplicates=" << dup << "\n";
+				if (dup == 0){
+					count = j++;
+					squares.push_back(matchLoc);
+					rectangle(r, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 0), CV_FILLED, 8, 0);
+					rectangle(f, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 255), 1, 8, 0);
+				}
+			//}
 			//}
 		}
 	}
 	greysrc.release();
 	greyTemp.release();
+	cout << "Vector Size=" << squares.size() << "\n";
 	return TRUE;
 }
 int main(void){
@@ -129,23 +139,24 @@ int main(void){
 	pt.x = 0;
 	pt.y = 0;
 
-	Mat temp = imread("Images//square.jpg", CV_LOAD_IMAGE_COLOR);
+	Mat temp = imread("Images//square2.jpg", CV_LOAD_IMAGE_COLOR);
 	//cvtColor(temp, temp, CV_8UC4,0);
 	Mat result;
 
 	captureFrame(frame, mineHandle, height, width);
 	//imwrite("Images//Master.jpg", frame);
 	//result.create(frame.cols - temp.cols + 1, frame.rows - temp.rows + 1, CV_32FC1);
-
+	vector<Point> unsquare;
 	until endOfTime{
 		if (captureFrame(frame, mineHandle,height,width)==TRUE){
 			if (!frame.empty()){
 				//matchTemplate(frame, temp, result, TM_CCOEFF_NORMED);
 				Mat result;
 				result.create(frame.cols - temp.cols + 1, frame.rows - temp.rows + 1, CV_32FC1);
-				countSquares(frame, temp, result, unpressed);
+				countSquares(frame, temp, result, unpressed,unsquare);
 				cout << "Unpressed Squares: " << unpressed << "\n";
 				//result.zeros;
+				//unsquare.clear();
 				imshow("R", result);
 				result.release();
 				imshow("Win", frame);
