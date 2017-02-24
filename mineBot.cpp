@@ -67,7 +67,7 @@ BOOL captureFrame(Mat &f,HWND mineHandle,int height, int width){
 }
 
 
-BOOL countSquares(Mat &f,Mat &t, Mat &r, int &count,vector<Point> &squares){
+BOOL countSquares(Mat &f,Mat &t, Mat &r,double threshold,vector<Point> &squares,Scalar colour){
 	//Frame,Template,Result,Number of squares
 	Mat greysrc = f.clone();
 	Mat greyTemp = t.clone();
@@ -84,26 +84,32 @@ BOOL countSquares(Mat &f,Mat &t, Mat &r, int &count,vector<Point> &squares){
 	Point matchLoc;
 	Point prevMatchLoc;
 	squares.clear();
-	
+	bool edge = FALSE;
 	int dup = 0; //count duplicates
 	for (int i = 0, j = 0; i < 81; i++){
 		//minesweeper has gradient so only detects two of the squares.
 		minMaxLoc(r, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 		//if (maxVal > 0.87){
-		if ((maxVal > 0.920)){
+		if ((maxVal > threshold)){
 			matchLoc = maxLoc;
 			for (int k = 0; k < squares.size(); k++){
-				if (((abs(matchLoc.y - squares[k].y) <= 1) && (abs(matchLoc.x - squares[k].x) <= 1))){
+				if (((abs(matchLoc.y - squares[k].y) <= 3) && (abs(matchLoc.x - squares[k].x) <= 3))){
 					//cout << "!";
 					dup++;
 				}
 			}
-				cout << "Duplicates=" << dup << "\n";
-				if (dup == 0){
-					count = j++;
+			if (matchLoc.x > 30){
+				edge = TRUE;
+			}
+			else{
+				edge = FALSE;
+			}
+				//cout << "Duplicates=" << dup << "\n";
+				//dup = 0;
+				if ((dup == 0)&&(edge==TRUE)){
 					squares.push_back(matchLoc);
-					rectangle(r, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 0), CV_FILLED, 8, 0);
-					rectangle(f, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 255), 1, 8, 0);
+					rectangle(r, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 0), 2, 8, 0);
+					rectangle(f, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), colour, 1, 8, 0);
 				}
 			//}
 			//}
@@ -111,7 +117,7 @@ BOOL countSquares(Mat &f,Mat &t, Mat &r, int &count,vector<Point> &squares){
 	}
 	greysrc.release();
 	greyTemp.release();
-	cout << "Vector Size=" << squares.size() << "\n";
+	//cout << "Vector Size=" << squares.size() << "\n";
 	return TRUE;
 }
 int main(void){
@@ -140,26 +146,37 @@ int main(void){
 	pt.y = 0;
 
 	Mat temp = imread("Images//square2.jpg", CV_LOAD_IMAGE_COLOR);
+	Mat oneTemp = imread("Images//one3.jpg", CV_LOAD_IMAGE_COLOR);
 	//cvtColor(temp, temp, CV_8UC4,0);
-	Mat result;
-
+	//Mat result;
+	//Mat oneResult;
 	captureFrame(frame, mineHandle, height, width);
 	//imwrite("Images//Master.jpg", frame);
 	//result.create(frame.cols - temp.cols + 1, frame.rows - temp.rows + 1, CV_32FC1);
 	vector<Point> unsquare;
+	vector<Point> oneSquares;
+	Mat unPressedMat;
+	Mat oneMat;
 	until endOfTime{
 		if (captureFrame(frame, mineHandle,height,width)==TRUE){
 			if (!frame.empty()){
 				//matchTemplate(frame, temp, result, TM_CCOEFF_NORMED);
 				Mat result;
 				result.create(frame.cols - temp.cols + 1, frame.rows - temp.rows + 1, CV_32FC1);
-				countSquares(frame, temp, result, unpressed,unsquare);
-				cout << "Unpressed Squares: " << unpressed << "\n";
-				//result.zeros;
-				//unsquare.clear();
-				imshow("R", result);
+				//unPressedMat = frame.clone();
+				countSquares(frame, temp, result,0.920, unsquare, Scalar(0, 0, 255));
+				cout << "Unpressed Squares: " << unsquare.size() << "\n";
 				result.release();
+				if (unsquare.size() != 81){
+					Mat oneResult;
+					oneResult.create(frame.cols - oneTemp.cols + 1, frame.rows - oneTemp.rows + 1, CV_32FC1);
+					//oneMat = frame.clone();
+					countSquares(frame, oneTemp, oneResult, 0.9, oneSquares, Scalar(0, 255, 0));
+					cout << "One Squares: " << oneSquares.size() << "\n";
+					oneResult.release();
+				}
 				imshow("Win", frame);
+				//imshow("One", oneMat);
 				//Sleep(2000);
 			}
 		}
