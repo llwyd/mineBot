@@ -140,7 +140,7 @@ void sortGrid(vector<Point> &p){
 		std::sort(p.begin() + (i * 9), p.begin() + ((i + 1) * 9), sortY);
 	}
 }
-void printGrid(char g[9][9]){
+void printGrid(char** &g){
 	for (int j = 0; j < 9; j++){
 		for (int k = 0; k < 9; k++){
 			cout << +g[k][j];
@@ -149,8 +149,16 @@ void printGrid(char g[9][9]){
 	}
 }
 
-void updateGrid(char g[9][9]){
-
+void updateGrid(char** &g,vector<Point>&s,vector<Point>&masterGrid,char value){
+	for (int j = 0; j < s.size(); j++){
+		for (int k = 0; k < masterGrid.size(); k++){
+			if ((s[j].x > masterGrid[k].x) && (s[j].x <(masterGrid[k].x + 16)) && (s[j].y > masterGrid[k].y) && (s[j].y < (masterGrid[k].y + 16))){
+				int xpos = (int)(k / 9);
+				int ypos = (int)(k % 9);
+				g[xpos][ypos] = value;
+			}
+		}
+	}
 }
 
 int main(void){
@@ -211,7 +219,11 @@ int main(void){
 	
 	//imwrite("Images//Master.jpg", frame);
 	//result.create(frame.cols - temp.cols + 1, frame.rows - temp.rows + 1, CV_32FC1);
-	char grid[9][9] = {0};
+	char **grid = (char **)calloc(9, sizeof(char));
+	for (int k = 0; k < 9; k++){
+		grid[k] = (char*)calloc(9, sizeof(char));
+	}
+//	char grid[9][9] = { 0 };
 	vector<Point> unsquare;
 	vector<Point> oneSquares;
 	vector<Point> twoSquares;
@@ -263,19 +275,14 @@ int main(void){
 					fourResult.release();
 				}
 				//update grid
-				for (int j = 0; j < oneSquares.size(); j++){
-					for (int k = 0; k < gridMap.size(); k++){
-						if ((oneSquares[j].x > gridMap[k].x) && (oneSquares[j].x <(gridMap[k].x + 16)) && (oneSquares[j].y > gridMap[k].y) && (oneSquares[j].y < (gridMap[k].y + 16))){
-							int xpos = (int)k / 9;
-							int ypos = (int)k % 9;
-							grid[xpos][ypos] = 1;
-						}
-					}
-				}
+				updateGrid(grid, unsquare, gridMap, 0);
+				updateGrid(grid, oneSquares, gridMap, 1);
+				updateGrid(grid, twoSquares, gridMap, 2);
+				updateGrid(grid, threeSquares, gridMap, 3);
 				printGrid(grid);
 				cv::imshow("Win", frame);
 				//imshow("One", oneMat);
-				//Sleep(2000);
+				Sleep(2000);
 			}
 		}
 		if (waitKey(30) >= 0) break;
