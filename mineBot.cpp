@@ -4,6 +4,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
+#include <algorithm>
 /*
 mineBot.cpp
 T.Lloyd
@@ -120,6 +121,16 @@ BOOL countSquares(Mat &f,Mat &t, Mat &r,double threshold,vector<Point> &squares,
 	//cout << "Vector Size=" << squares.size() << "\n";
 	return TRUE;
 }
+
+void printSquares(vector<Point> &p){
+	for (int k = 0; k < p.size(); k++){
+		cout << "(" << p[k].x << "," << p[k].y << ")\n";
+	}
+}
+
+bool sortX(Point p1, Point p2){return (p1.x < p2.x);}
+bool sortY(Point p1, Point p2){ return (p1.y < p2.y); }
+
 int main(void){
 	std::cout << "mineBot\nT.Lloyd\n";
 	Mat frame;
@@ -153,11 +164,43 @@ int main(void){
 	//cvtColor(temp, temp, CV_8UC4,0);
 	//Mat result;
 	//Mat oneResult;
+
+	//----------------------------------------------------------------------------
+	//Initial read to define co-ordinates
+
+	Mat gridResult;
+	vector<Point> gridMap;
+	vector<Point> sgridMap;
 	captureFrame(frame, mineHandle, height, width);
+	gridResult.create(frame.cols - temp.cols + 1, frame.rows - temp.rows + 1, CV_32FC1);
+	//unPressedMat = frame.clone();
+	countSquares(frame, temp, gridResult, 0.920, gridMap, Scalar(0, 255, 255));
+	cout << "Unpressed Squares: " << gridResult.size() << "\n";
+	printSquares(gridMap);
+	cv::imshow("Win", frame);
+	Point max;
+	Point min;
+	max.x = 0;
+	max.y = 0;
+	min.x = width;
+	min.y = height;
+	//Finding max and min
+
+	//9x9 Grid Sorting Algorithm
+	std::sort(gridMap.begin(), gridMap.end(),sortX);
+	for (int i = 0; i < 9; i++){
+		std::sort(gridMap.begin()+(i*9), gridMap.begin() + ((i+1)*9), sortY);
+	}
+	printSquares(gridMap);
+//	for (int i = 0; i < gridMap.size; i++){
+		
+//	}
+	Sleep(1000 * 5);
+	//----------------------------------------------------------------------------
+	
 	//imwrite("Images//Master.jpg", frame);
 	//result.create(frame.cols - temp.cols + 1, frame.rows - temp.rows + 1, CV_32FC1);
 	char grid[9][9] = {0};
-	vector <vector<Point>> gridPoints;
 	vector<Point> unsquare;
 	vector<Point> oneSquares;
 	vector<Point> twoSquares;
@@ -177,6 +220,7 @@ int main(void){
 				//unPressedMat = frame.clone();
 				countSquares(frame, temp, result,0.920, unsquare, Scalar(0,255, 255));
 				cout << "Unpressed Squares: " << unsquare.size() << "\n";
+				printSquares(unsquare);
 				result.release();
 				if (unsquare.size() != 81){
 					Mat oneResult;
@@ -207,7 +251,7 @@ int main(void){
 					cout << "Four Squares: " << fourSquares.size() << "\n";
 					fourResult.release();
 				}
-				imshow("Win", frame);
+				cv::imshow("Win", frame);
 				//imshow("One", oneMat);
 				Sleep(2000);
 			}
