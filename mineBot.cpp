@@ -128,8 +128,30 @@ void printSquares(vector<Point> &p){
 	}
 }
 
+
+
 bool sortX(Point p1, Point p2){return (p1.x < p2.x);}
 bool sortY(Point p1, Point p2){ return (p1.y < p2.y); }
+
+void sortGrid(vector<Point> &p){
+	//9x9 Grid Sorting Algorithm
+	std::sort(p.begin(), p.end(), sortX);
+	for (int i = 0; i < 9; i++){
+		std::sort(p.begin() + (i * 9), p.begin() + ((i + 1) * 9), sortY);
+	}
+}
+void printGrid(char g[9][9]){
+	for (int j = 0; j < 9; j++){
+		for (int k = 0; k < 9; k++){
+			cout << +g[k][j];
+		}
+		cout << "\n";
+	}
+}
+
+void updateGrid(char g[9][9]){
+
+}
 
 int main(void){
 	std::cout << "mineBot\nT.Lloyd\n";
@@ -170,7 +192,6 @@ int main(void){
 
 	Mat gridResult;
 	vector<Point> gridMap;
-	vector<Point> sgridMap;
 	captureFrame(frame, mineHandle, height, width);
 	gridResult.create(frame.cols - temp.cols + 1, frame.rows - temp.rows + 1, CV_32FC1);
 	//unPressedMat = frame.clone();
@@ -178,24 +199,14 @@ int main(void){
 	cout << "Unpressed Squares: " << gridResult.size() << "\n";
 	printSquares(gridMap);
 	cv::imshow("Win", frame);
-	Point max;
-	Point min;
-	max.x = 0;
-	max.y = 0;
-	min.x = width;
-	min.y = height;
-	//Finding max and min
+	gridResult.release();
 
-	//9x9 Grid Sorting Algorithm
-	std::sort(gridMap.begin(), gridMap.end(),sortX);
-	for (int i = 0; i < 9; i++){
-		std::sort(gridMap.begin()+(i*9), gridMap.begin() + ((i+1)*9), sortY);
-	}
+	sortGrid(gridMap);
 	printSquares(gridMap);
 //	for (int i = 0; i < gridMap.size; i++){
 		
 //	}
-	Sleep(1000 * 5);
+	//Sleep(1000 * 5);
 	//----------------------------------------------------------------------------
 	
 	//imwrite("Images//Master.jpg", frame);
@@ -220,7 +231,7 @@ int main(void){
 				//unPressedMat = frame.clone();
 				countSquares(frame, temp, result,0.920, unsquare, Scalar(0,255, 255));
 				cout << "Unpressed Squares: " << unsquare.size() << "\n";
-				printSquares(unsquare);
+				//printSquares(unsquare);
 				result.release();
 				if (unsquare.size() != 81){
 					Mat oneResult;
@@ -251,9 +262,20 @@ int main(void){
 					cout << "Four Squares: " << fourSquares.size() << "\n";
 					fourResult.release();
 				}
+				//update grid
+				for (int j = 0; j < oneSquares.size(); j++){
+					for (int k = 0; k < gridMap.size(); k++){
+						if ((oneSquares[j].x > gridMap[k].x) && (oneSquares[j].x <(gridMap[k].x + 16)) && (oneSquares[j].y > gridMap[k].y) && (oneSquares[j].y < (gridMap[k].y + 16))){
+							int xpos = (int)k / 9;
+							int ypos = (int)k % 9;
+							grid[xpos][ypos] = 1;
+						}
+					}
+				}
+				printGrid(grid);
 				cv::imshow("Win", frame);
 				//imshow("One", oneMat);
-				Sleep(2000);
+				//Sleep(2000);
 			}
 		}
 		if (waitKey(30) >= 0) break;
