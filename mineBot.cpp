@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 #include <algorithm>
+#include <string.h>
 /*
 mineBot.cpp
 T.Lloyd
@@ -143,7 +144,7 @@ void sortGrid(vector<Point> &p){
 void printGrid(char** &g){
 	for (int j = 0; j < 9; j++){
 		for (int k = 0; k < 9; k++){
-			cout << +g[k][j];
+			cout << g[k][j];
 		}
 		cout << "\n";
 	}
@@ -152,11 +153,20 @@ void printGrid(char** &g){
 void updateGrid(char** &g,vector<Point>&s,vector<Point>&masterGrid,char value){
 	for (int j = 0; j < s.size(); j++){
 		for (int k = 0; k < masterGrid.size(); k++){
-			if ((s[j].x > masterGrid[k].x) && (s[j].x <(masterGrid[k].x + 16)) && (s[j].y > masterGrid[k].y) && (s[j].y < (masterGrid[k].y + 16))){
+			if ((s[j].x >= masterGrid[k].x) && (s[j].x <=(masterGrid[k].x + 16)) && (s[j].y >= masterGrid[k].y) && (s[j].y <= (masterGrid[k].y + 16))){
 				int xpos = (int)(k / 9);
 				int ypos = (int)(k % 9);
 				g[xpos][ypos] = value;
 			}
+		}
+	}
+}
+
+
+void clearGrid(char** &g){
+	for (int i = 0; i < 9; i++){
+		for (int k = 0; k < 9; k++){
+			g[i][k] = 0;
 		}
 	}
 }
@@ -235,6 +245,7 @@ int main(void){
 	Mat threeMat;
 	Mat fourMat;
 	until endOfTime{
+		clearGrid(grid);
 		if (captureFrame(frame, mineHandle,height,width)==TRUE){
 			if (!frame.empty()){
 				//matchTemplate(frame, temp, result, TM_CCOEFF_NORMED);
@@ -256,14 +267,14 @@ int main(void){
 					Mat twoResult;
 					twoResult.create(frame.cols - twoTemp.cols + 1, frame.rows - twoTemp.rows + 1, CV_32FC1);
 					//oneMat = frame.clone();
-					countSquares(frame, twoTemp, twoResult, 0.9, twoSquares, Scalar(255, 0, 0));
+					countSquares(frame, twoTemp, twoResult, 0.9, twoSquares, Scalar(255, 255, 0));
 					cout << "Two Squares: " << twoSquares.size() << "\n";
 					twoResult.release();
 
 					Mat threeResult;
 					threeResult.create(frame.cols - threeTemp.cols + 1, frame.rows - threeTemp.rows + 1, CV_32FC1);
 					//oneMat = frame.clone();
-					countSquares(frame, threeTemp, threeResult, 0.9, threeSquares, Scalar(255, 0, 0));
+					countSquares(frame, threeTemp, threeResult, 0.9, threeSquares, Scalar(255, 0, 255));
 					cout << "Three Squares: " << threeSquares.size() << "\n";
 					threeResult.release();
 
@@ -275,14 +286,14 @@ int main(void){
 					fourResult.release();
 				}
 				//update grid
-				updateGrid(grid, unsquare, gridMap, 0);
-				updateGrid(grid, oneSquares, gridMap, 1);
-				updateGrid(grid, twoSquares, gridMap, 2);
-				updateGrid(grid, threeSquares, gridMap, 3);
+				updateGrid(grid, unsquare, gridMap, 'U');
+				updateGrid(grid, oneSquares, gridMap, '1');
+				updateGrid(grid, twoSquares, gridMap, '2');
+				updateGrid(grid, threeSquares, gridMap, '3');
 				printGrid(grid);
 				cv::imshow("Win", frame);
 				//imshow("One", oneMat);
-				Sleep(2000);
+				Sleep(1000);
 			}
 		}
 		if (waitKey(30) >= 0) break;
