@@ -68,7 +68,7 @@ BOOL captureFrame(Mat &f,HWND mineHandle,int height, int width){
 	return TRUE;
 }
 
-
+//Counts squares and doesn't check them against the master grid
 BOOL countSquares(Mat &f,Mat &t, Mat &r,double threshold,vector<Point> &squares,Scalar colour){
 	//Frame,Template,Result,Number of squares
 	Mat greysrc = f.clone();
@@ -100,7 +100,7 @@ BOOL countSquares(Mat &f,Mat &t, Mat &r,double threshold,vector<Point> &squares,
 					dup++;
 				}
 			}
-			if (matchLoc.x > 30){
+			if ((matchLoc.x > 30)&&(matchLoc.y>30)){
 				edge = TRUE;
 			}
 			else{
@@ -110,7 +110,7 @@ BOOL countSquares(Mat &f,Mat &t, Mat &r,double threshold,vector<Point> &squares,
 				//dup = 0;
 				if ((dup == 0)&&(edge==TRUE)){
 					squares.push_back(matchLoc);
-					rectangle(r, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 0), CV_FILLED, 8, 0);
+					rectangle(r, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 0), 2, 8, 0);
 					rectangle(f, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), colour, 1, 8, 0);
 				}
 			//}
@@ -120,6 +120,74 @@ BOOL countSquares(Mat &f,Mat &t, Mat &r,double threshold,vector<Point> &squares,
 	greysrc.release();
 	greyTemp.release();
 	//cout << "Vector Size=" << squares.size() << "\n";
+	return TRUE;
+}
+
+
+//Counts squares and checks them against the master grid
+BOOL countSquares(Mat &f, Mat &t, Mat &r, double threshold, vector<Point> &squares, vector<Point>&masterGrid, Scalar colour){
+	//Frame,Template,Result,Number of squares
+	Mat greysrc = f.clone();
+	Mat greyTemp = t.clone();
+	cvtColor(f, greysrc, COLOR_BGR2GRAY);
+	cvtColor(t, greyTemp, COLOR_BGR2GRAY);
+
+	matchTemplate(greysrc, greyTemp, r, TM_CCOEFF_NORMED);
+	normalize(r, r, 0, 1, NORM_MINMAX, -1, Mat());
+
+	double minVal;
+	double maxVal;
+	Point minLoc;
+	Point maxLoc;
+	Point matchLoc;
+	Point prevMatchLoc;
+	squares.clear();
+	bool edge = FALSE;
+	bool inside = FALSE;
+	int dup = 0; //count duplicates
+	for (int i = 0, j = 0; i < 81; i++){
+		//minesweeper has gradient so only detects two of the squares.
+		minMaxLoc(r, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+		//if (maxVal > 0.87){
+		if ((maxVal > threshold)){
+			matchLoc = maxLoc;
+			for (int k = 0; k < squares.size(); k++){
+				if (((abs(matchLoc.y - squares[k].y) <= 3) && (abs(matchLoc.x - squares[k].x) <= 3))){
+					//cout << "!";
+					dup++;
+				}
+			}
+			if ((matchLoc.x > 30) && (matchLoc.y>30)){
+				edge = TRUE;
+			}
+			else{
+				edge = FALSE;
+			}
+			for (int k = 0; k < masterGrid.size(); k++){
+				if ((matchLoc.x >= masterGrid[k].x) && (matchLoc.x <= (masterGrid[k].x + 4)) && (matchLoc.y >= masterGrid[k].y) && (matchLoc.y <= (masterGrid[k].y + 4))){
+					inside = TRUE;
+					break;
+				}
+				else{
+					inside = FALSE;
+					//break;
+				}
+			}
+
+
+			//cout << "Duplicates=" << dup << "\n";
+			//dup = 0;
+			if ((dup == 0) && (edge == TRUE)&&(inside==TRUE)){
+				squares.push_back(matchLoc);
+				rectangle(r, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), Scalar(0, 0, 0), CV_FILLED, 8, 0);
+				rectangle(f, matchLoc, Point(matchLoc.x + t.cols, matchLoc.y + t.rows), colour, 1, 8, 0);
+			}
+			//}
+			//}
+		}
+	}
+	greysrc.release();
+	greyTemp.release();
 	return TRUE;
 }
 
@@ -149,7 +217,6 @@ void printGrid(char** &g){
 		cout << "\n";
 	}
 }
-
 void updateGrid(char** &g,vector<Point>&s,vector<Point>&masterGrid,char value){
 	for (int j = 0; j < s.size(); j++){
 		for (int k = 0; k < masterGrid.size(); k++){
@@ -161,8 +228,6 @@ void updateGrid(char** &g,vector<Point>&s,vector<Point>&masterGrid,char value){
 		}
 	}
 }
-
-
 void clearGrid(char** &g){
 	for (int i = 0; i < 9; i++){
 		for (int k = 0; k < 9; k++){
@@ -201,6 +266,7 @@ int main(void){
 	Mat twoTemp = imread("Images//two.jpg", CV_LOAD_IMAGE_COLOR);
 	Mat threeTemp = imread("Images//three.jpg", CV_LOAD_IMAGE_COLOR);
 	Mat fourTemp = imread("Images//four.jpg", CV_LOAD_IMAGE_COLOR);
+	Mat blankTemp = imread("Images//blank.jpg", CV_LOAD_IMAGE_COLOR);
 	//cvtColor(temp, temp, CV_8UC4,0);
 	//Mat result;
 	//Mat oneResult;
@@ -239,16 +305,29 @@ int main(void){
 	vector<Point> twoSquares;
 	vector<Point> threeSquares;
 	vector<Point> fourSquares;
+	vector<Point> blankSquares;
 	Mat unPressedMat;
 	Mat oneMat;
 	Mat twoMat;
 	Mat threeMat;
 	Mat fourMat;
+	Mat blankMat;
 	until endOfTime{
 		clearGrid(grid);
 		if (captureFrame(frame, mineHandle,height,width)==TRUE){
 			if (!frame.empty()){
 				//matchTemplate(frame, temp, result, TM_CCOEFF_NORMED);
+				//Masking to get rid of shadows
+				Mat m;
+			//	inRange(frame, Scalar(71, 80, 88), Scalar(150, 150, 170), m);
+				//inRange(frame, Scalar(71, 80, 88), Scalar(107, 102, 98), m);
+			//	frame.setTo(Scalar(226, 206, 192), m);
+				//inRange(frame, Scalar(160,0,0), Scalar(255, 170, 130), m);
+				//inRange(frame, Scalar(160, 0, 0), Scalar(255, 210, 160), m);
+				//frame.setTo(Scalar(255, 0, 0), m);
+
+
+				//imshow("mask", m);
 				Mat result;
 				result.create(frame.cols - temp.cols + 1, frame.rows - temp.rows + 1, CV_32FC1);
 				//unPressedMat = frame.clone();
@@ -257,10 +336,18 @@ int main(void){
 				//printSquares(unsquare);
 				result.release();
 				if (unsquare.size() != 81){
+				//	/*
+					
+					//Mat blankResult;
+					//blankResult.create(frame.cols - blankTemp.cols + 1, frame.rows - blankTemp.rows + 1, CV_32FC1);
+					//countSquares(frame, blankTemp, blankResult, 0.7, blankSquares, Scalar(0, 0, 255));
+					//cout << "Blank Squares: " << blankSquares.size() << "\n";
+					//blankResult.release();
+					
 					Mat oneResult;
 					oneResult.create(frame.cols - oneTemp.cols + 1, frame.rows - oneTemp.rows + 1, CV_32FC1);
 					//oneMat = frame.clone();
-					countSquares(frame, oneTemp, oneResult, 0.9, oneSquares, Scalar(255, 0, 0));
+					countSquares(frame, oneTemp, oneResult, 0.9, oneSquares, Scalar(255, 255, 0));
 					cout << "One Squares: " << oneSquares.size() << "\n";
 					oneResult.release();
 
@@ -274,26 +361,28 @@ int main(void){
 					Mat threeResult;
 					threeResult.create(frame.cols - threeTemp.cols + 1, frame.rows - threeTemp.rows + 1, CV_32FC1);
 					//oneMat = frame.clone();
-					countSquares(frame, threeTemp, threeResult, 0.9, threeSquares, Scalar(255, 0, 255));
+					countSquares(frame, threeTemp, threeResult, 0.95, threeSquares, Scalar(255, 255,0));
 					cout << "Three Squares: " << threeSquares.size() << "\n";
 					threeResult.release();
 
 					Mat fourResult;
 					fourResult.create(frame.cols - fourTemp.cols + 1, frame.rows - fourTemp.rows + 1, CV_32FC1);
 					//oneMat = frame.clone();
-					countSquares(frame, fourTemp, fourResult, 0.9, fourSquares, Scalar(255, 0, 0));
+					countSquares(frame, fourTemp, fourResult, 0.9, fourSquares, gridMap, Scalar(255, 255, 0));
 					cout << "Four Squares: " << fourSquares.size() << "\n";
 					fourResult.release();
+				//	*/
 				}
 				//update grid
 				updateGrid(grid, unsquare, gridMap, 'U');
 				updateGrid(grid, oneSquares, gridMap, '1');
 				updateGrid(grid, twoSquares, gridMap, '2');
 				updateGrid(grid, threeSquares, gridMap, '3');
+				updateGrid(grid, fourSquares, gridMap, '4');
 				printGrid(grid);
 				cv::imshow("Win", frame);
 				//imshow("One", oneMat);
-				Sleep(1000);
+				//Sleep(1000);
 			}
 		}
 		if (waitKey(30) >= 0) break;
